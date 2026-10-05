@@ -148,54 +148,16 @@ class FsstEncoding final
       std::vector<std::optional<const EncodingLayout>>& children,
       const Encoding::Options& options = {});
 
-  std::string debugString(int offset) const final;
-
- private:
-  // Approximate serialized symbol table size in bytes (~2KB typical).
-  static constexpr uint32_t kSymbolTableOverhead = 2048;
-
-  // Maximum bytes represented by one FSST symbol.
-  static constexpr size_t kMaxSymbolLength = 8;
-
-  static constexpr size_t kStringPageSize = 256 * 1024;
-
-  struct StringPageSlot {
-    // Non-owning page address returned by stringBufferFactory_.
-    char* data;
-    // Number of writable bytes in the page.
-    size_t capacity;
-  };
-
+  /// Serialized-format helpers shared with FsstEncodingView.
   struct Header {
     // Secondary compression applied to the concatenated FSST output.
     CompressionType compressionType{CompressionType::Uncompressed};
-
     // Serialized FSST symbol table.
     std::string_view symbolTable;
-
     // Nested encoding for per-row compressed string sizes.
     std::string_view lengths;
-
     // Serialized blob, which may have secondary encoding-layer compression.
     std::string_view blob;
-  };
-
-  struct CompressedValues {
-    explicit CompressedValues(velox::memory::MemoryPool* pool);
-
-    // Serialized FSST symbol table buffer. Kept alive until final
-    // serialization.
-    velox::BufferPtr symbolTableBuffer;
-    unsigned char* symbolTableData{nullptr};
-    size_t symbolTableSize{0};
-
-    // Concatenated FSST output storage. compressedPtrs point into this buffer.
-    Vector<unsigned char> compressedBuffer;
-    Vector<size_t> compressedLengths;
-    Vector<unsigned char*> compressedPtrs;
-
-    size_t totalInputSize{0};
-    size_t totalCompressedSize{0};
   };
 
   // Parses the serialized FSST header at offset within encoding.
@@ -217,6 +179,42 @@ class FsstEncoding final
       std::span<const uint32_t> lengths,
       std::string_view blob,
       size_t blobOffset);
+
+  std::string debugString(int offset) const final;
+
+ private:
+  // Approximate serialized symbol table size in bytes (~2KB typical).
+  static constexpr uint32_t kSymbolTableOverhead = 2048;
+
+  // Maximum bytes represented by one FSST symbol.
+  static constexpr size_t kMaxSymbolLength = 8;
+
+  static constexpr size_t kStringPageSize = 256 * 1024;
+
+  struct StringPageSlot {
+    // Non-owning page address returned by stringBufferFactory_.
+    char* data;
+    // Number of writable bytes in the page.
+    size_t capacity;
+  };
+
+  struct CompressedValues {
+    explicit CompressedValues(velox::memory::MemoryPool* pool);
+
+    // Serialized FSST symbol table buffer. Kept alive until final
+    // serialization.
+    velox::BufferPtr symbolTableBuffer;
+    unsigned char* symbolTableData{nullptr};
+    size_t symbolTableSize{0};
+
+    // Concatenated FSST output storage. compressedPtrs point into this buffer.
+    Vector<unsigned char> compressedBuffer;
+    Vector<size_t> compressedLengths;
+    Vector<unsigned char*> compressedPtrs;
+
+    size_t totalInputSize{0};
+    size_t totalCompressedSize{0};
+  };
 
   // Checks that a sequential read remains within the row range.
   void checkReadRange(uint32_t rowCount, const char* operation) const;
